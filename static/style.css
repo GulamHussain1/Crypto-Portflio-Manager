@@ -1,0 +1,408 @@
+/* Base Reset & Typography */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background-color: #0b1120; /* Deep dark navy background */
+    color: #e2e8f0; /* Off-white text */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* The Glass/Dark Card Container */
+.auth-container {
+    background-color: #151c2c; /* Slightly lighter card color */
+    border: 1px solid #2d3748; /* Subtle border */
+    border-radius: 8px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.auth-container h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
+}
+
+/* Form Elements */
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: #a0aec0;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #0b1120; /* Darker input fields */
+    border: 1px solid #2d3748;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #facc15; /* Yellow highlight on focus */
+}
+
+/* Buttons and Links */
+.btn-primary {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #facc15; /* The yellow from your screenshot */
+    color: #0b1120; /* Dark text on yellow button */
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 1rem;
+}
+
+.btn-primary:hover {
+    background-color: #eab308;
+}
+
+.auth-footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #a0aec0;
+}
+
+.auth-footer a {
+    color: #facc15;
+    text-decoration: none;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Flash Messages (Errors/Success) */
+.flash-messages {
+    list-style: none;
+    margin-bottom: 1rem;
+}
+
+.flash-message {
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.flash-message.error {
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+}
+
+.flash-message.success {
+    background-color: rgba(34, 197, 94, 0.1);
+    border: 1px solid #22c55e;
+    color: #86efac;
+}
+
+/* --- Dashboard Layout --- */
+.dashboard-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1200px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    background-color: #151c2c;
+    border-radius: 8px;
+    border: 1px solid #2d3748;
+}
+
+.dashboard-nav h1 {
+    font-size: 1.5rem;
+    color: #facc15;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.nav-links a {
+    color: #a0aec0;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.nav-links a:hover {
+    color: #ffffff;
+}
+
+/* Data Cards & Charts */
+.dashboard-container {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.card {
+    background-color: #151c2c;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+}
+
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.btn-fetch {
+    background-color: transparent;
+    border: 1px solid #facc15;
+    color: #facc15;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-fetch:hover {
+    background-color: #facc15;
+    color: #0b1120;
+}
+/* --- Advanced App Layout --- */
+.app-layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: #0b1120;
+    overflow: hidden; /* Prevent body scroll, let main-content scroll */
+}
+
+/* Sidebar */
+.sidebar {
+    width: 260px;
+    background-color: #151c2c;
+    border-right: 1px solid #2d3748;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 0;
+}
+
+.sidebar-brand {
+    padding: 0 1.5rem 2rem 1.5rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #facc15;
+    border-bottom: 1px solid #2d3748;
+    margin-bottom: 1rem;
+}
+
+.nav-menu {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0 1rem;
+}
+
+.nav-menu li a {
+    display: flex;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    color: #a0aec0;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.nav-menu li a:hover, .nav-menu li a.active {
+    background-color: rgba(250, 204, 21, 0.1);
+    color: #facc15;
+}
+
+/* Main Content Area */
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+/* KPI Cards Grid */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.kpi-card {
+    background-color: #151c2c;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.kpi-title {
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin-bottom: 0.5rem;
+}
+
+.kpi-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.kpi-highlight { color: #22c55e; font-size: 1rem; margin-left: 0.5rem; }
+
+/* Charts Grid */
+.bento-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+/* Make the main price chart span 2 columns */
+.chart-card-large { grid-column: span 2; }
+.chart-card-small { grid-column: span 1; }
+
+.chart-card {
+    background-color: #151c2c;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 1.5rem;
+    height: 350px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card h3 {
+    font-size: 1rem;
+    color: #e2e8f0;
+    margin-bottom: 1rem;
+}
+
+.chart-wrapper {
+    position: relative;
+    flex: 1;
+    width: 100%;
+}
+
+/* --- Live Market Specifics --- */
+.market-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.market-card {
+    background-color: #151c2c;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.market-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.coin-name {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.coin-symbol {
+    color: #a0aec0;
+    font-size: 0.9rem;
+    background-color: #2d3748;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.live-price {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    transition: color 0.3s ease; /* Smooth color transition for flashes */
+}
+
+.market-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: #a0aec0;
+    border-top: 1px solid #2d3748;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+}
+
+.stat-group {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Color utilities for positive/negative */
+.text-green { color: #22c55e !important; }
+.text-red { color: #ef4444 !important; }
+
+/* Flashing animations for price updates */
+@keyframes flashGreen {
+    0% { color: #22c55e; text-shadow: 0 0 10px rgba(34, 197, 94, 0.5); }
+    100% { color: #ffffff; text-shadow: none; }
+}
+
+@keyframes flashRed {
+    0% { color: #ef4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+    100% { color: #ffffff; text-shadow: none; }
+}
+
+.flash-up { animation: flashGreen 1s ease-out; }
+.flash-down { animation: flashRed 1s ease-out; }
