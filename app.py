@@ -23,7 +23,9 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- AUTH & DASHBOARD ROUTES ---
+# ==========================================
+# 1. AUTH & DASHBOARD ROUTES
+# ==========================================
 
 @app.route('/')
 def index():
@@ -84,22 +86,31 @@ def load_dashboard_data():
     start_prices = {}
     current_prices = {}
     
-    with open(filepath, 'r', encoding='utf-8') as f:
+    # utf-8-sig removes hidden Excel characters
+    with open(filepath, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            coin = row.get('crypto_name', '').strip().capitalize()
-            date = row.get('date_time', '')
-            try: price = float(row.get('close_price', 0))
-            except: continue
+            # Bulletproof column scanning
+            csv_coin, price, date = "", None, ""
+            for k, v in row.items():
+                if not k or v is None: continue
+                k_clean = str(k).strip().lower()
+                if k_clean in ['crypto_name', 'name', 'coin', 'id']: csv_coin = str(v).strip().capitalize()
+                elif k_clean in ['close_price', 'price', 'latest_price', 'close']: 
+                    try: price = float(v)
+                    except: pass
+                elif k_clean in ['date_time', 'date', 'time', 'timestamp']: date = str(v).strip()
+
+            if not csv_coin or price is None: continue
             
-            if coin not in chart_data:
-                chart_data[coin] = []
-                start_prices[coin] = price
+            if csv_coin not in chart_data:
+                chart_data[csv_coin] = []
+                start_prices[csv_coin] = price
                 
-            chart_data[coin].append(price)
-            current_prices[coin] = price
+            chart_data[csv_coin].append(price)
+            current_prices[csv_coin] = price
             
-            if coin == 'Bitcoin' and date not in dates:
+            if csv_coin == 'Bitcoin' and date not in dates:
                 dates.append(date)
 
     if not chart_data: return None
@@ -108,10 +119,11 @@ def load_dashboard_data():
     highest_return_coin = "None"
     highest_return_pct = 0
     for coin in chart_data.keys():
-        pct_change = ((current_prices[coin] - start_prices[coin]) / start_prices[coin]) * 100
-        if pct_change > highest_return_pct:
-            highest_return_pct = pct_change
-            highest_return_coin = coin
+        if start_prices[coin] > 0:
+            pct_change = ((current_prices[coin] - start_prices[coin]) / start_prices[coin]) * 100
+            if pct_change > highest_return_pct:
+                highest_return_pct = pct_change
+                highest_return_coin = coin
 
     return {
         'dates': dates, 
@@ -128,7 +140,40 @@ def dashboard():
     risk_data = {'distribution': [40, 35, 25], 'mix_scatter': [{'x': 12, 'y': 8}, {'x': 18, 'y': 15}, {'x': 25, 'y': 22}, {'x': 8, 'y': 4}]}
     return render_template('dashboard.html', username=session['username'], dashboard_data=json.dumps(data) if data else None, risk_data=json.dumps(risk_data), raw_data=data)
 
-# --- INVESTMENT MIX ---
+# ==========================================
+# 2. DATA SYNC & LIVE MARKET
+# ==========================================
+
+@app.route('/fetch-data', methods=['POST'])
+def fetch_data():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    dataset = data_manager.gather_all_data_in_parallel()
+    if dataset:
+        data_manager.save_to_csv(dataset)
+        flash('Market data successfully updated!', 'success')
+    else: flash('Error fetching data. Check your connection.', 'error')
+    return redirect(url_for('dashboard'))
+
+@app.route('/live-market')
+def live_market():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    return render_template('live_market.html', username=session['username'])
+
+@app.route('/api/live-prices')
+def api_live_prices():
+    symbols = '["BTCUSDT","ETHUSDT","SOLUSDT","XRPUSDT"]'
+    url = f"https://api.binance.com/api/v3/ticker/24hr?symbols={symbols}"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response: raw_data = json.loads(response.read().decode())
+        name_map = {"BTCUSDT": "Bitcoin", "ETHUSDT": "Ethereum", "SOLUSDT": "Solana", "XRPUSDT": "Ripple"}
+        live_data = [{"name": name_map.get(item['symbol'], item['symbol']), "symbol": item['symbol'].replace('USDT', ''), "price": float(item['lastPrice']), "change_pct": float(item['priceChangePercent']), "high": float(item['highPrice']), "low": float(item['lowPrice']), "volume": float(item['volume'])} for item in raw_data]
+        return {"status": "success", "data": live_data}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+# ==========================================
+# 3. INVESTMENT MIX CALCULATOR
+# ==========================================
 
 def rule_based_allocation(amount, risk_profile):
     amount = float(amount)
@@ -166,7 +211,9 @@ def investment_mix():
             session['last_plan'] = calculated_plan 
     return render_template('investment_mix.html', username=session['username'], plan=calculated_plan)
 
-# --- PORTFOLIO SIMULATOR ---
+# ==========================================
+# 4. PORTFOLIO SIMULATOR
+# ==========================================
 
 def simulate_portfolio(amount, allocations):
     filepath = os.path.join('data', 'crypto_365d_history.csv')
@@ -178,11 +225,10 @@ def simulate_portfolio(amount, allocations):
     with open(filepath, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            # Bulletproof dynamic column finder
             csv_coin, price, date = "", None, ""
             for k, v in row.items():
-                if not k: continue
-                k_clean = k.strip().lower()
+                if not k or v is None: continue
+                k_clean = str(k).strip().lower()
                 if k_clean in ['crypto_name', 'name', 'coin', 'id']: csv_coin = str(v).strip().lower()
                 elif k_clean in ['close_price', 'price', 'latest_price', 'close']: 
                     try: price = float(v)
@@ -209,7 +255,6 @@ def simulate_portfolio(amount, allocations):
         if len(history[coin]) > 0:
             day_1_price = history[coin][0]
             usd_allocated = amount * (float(allocations.get(coin, 0)) / 100.0)
-            # Prevent crashes if price is exactly zero
             coin_holdings[coin] = (usd_allocated / day_1_price) if day_1_price > 0 else 0
         else: 
             coin_holdings[coin] = 0
@@ -244,11 +289,16 @@ def simulator():
             'Solana': safe_float(request.form.get('sol_pct')),
             'Ripple': safe_float(request.form.get('xrp_pct'))
         }
-        if sum(allocations.values()) == 100: simulation_results = simulate_portfolio(amount, allocations)
-        else: flash('Allocations must equal 100%.', 'error')
+        if sum(allocations.values()) == 100: 
+            simulation_results = simulate_portfolio(amount, allocations)
+            if not simulation_results: flash('Simulation Error: Not enough historical data found in the CSV file.', 'error')
+        else: 
+            flash('Allocations must equal exactly 100%.', 'error')
     return render_template('portfolio_simulator.html', username=session['username'], results=simulation_results)
 
-# --- PRICE FORECAST (ML) ---
+# ==========================================
+# 5. MACHINE LEARNING FORECAST
+# ==========================================
 
 def predict_future_price(coin_name, days_ahead):
     filepath = os.path.join('data', 'crypto_365d_history.csv')
@@ -256,19 +306,26 @@ def predict_future_price(coin_name, days_ahead):
 
     historical_prices = []
     historical_dates = []
+    target_coin = str(coin_name).strip().lower()
     
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            csv_coin = str(row.get('crypto_name', '')).strip().lower()
-            target_coin = str(coin_name).strip().lower()
-            if csv_coin == target_coin:
-                try:
-                    historical_prices.append(float(row['close_price']))
-                    historical_dates.append(row['date_time'])
-                except: continue
+            csv_coin, price, date = "", None, ""
+            for k, v in row.items():
+                if not k or v is None: continue
+                k_clean = str(k).strip().lower()
+                if k_clean in ['crypto_name', 'name', 'coin', 'id']: csv_coin = str(v).strip().lower()
+                elif k_clean in ['close_price', 'price', 'latest_price', 'close']: 
+                    try: price = float(v)
+                    except: pass
+                elif k_clean in ['date_time', 'date', 'time', 'timestamp']: date = str(v).strip()
+            
+            if csv_coin == target_coin and price is not None:
+                historical_prices.append(price)
+                if date: historical_dates.append(date)
 
-    if not historical_prices or len(historical_prices) < 2: return None
+    if len(historical_prices) < 2: return None
 
     n = len(historical_prices)
     x = list(range(1, n + 1)) 
@@ -304,10 +361,14 @@ def forecast():
     if request.method == 'POST':
         selected_coin = request.form.get('coin')
         days_to_predict = request.form.get('days')
-        if selected_coin and days_to_predict: prediction = predict_future_price(selected_coin, days_to_predict)
+        if selected_coin and days_to_predict: 
+            prediction = predict_future_price(selected_coin, days_to_predict)
+            if not prediction: flash(f'ML Error: Requires at least 2 days of historical data for {selected_coin} to draw a trendline.', 'error')
     return render_template('price_forecast.html', username=session['username'], prediction=prediction)
 
-# --- RISK ANALYSIS ---
+# ==========================================
+# 6. RISK ANALYSIS
+# ==========================================
 
 def calculate_risk_metrics(coin_name):
     filepath = os.path.join('data', 'crypto_365d_history.csv')
@@ -315,19 +376,26 @@ def calculate_risk_metrics(coin_name):
         
     prices = []
     dates = []
+    target_coin = str(coin_name).strip().lower()
     
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            csv_coin = str(row.get('crypto_name', '')).strip().lower()
-            target_coin = str(coin_name).strip().lower()
-            if csv_coin == target_coin:
-                try:
-                    prices.append(float(row['close_price']))
-                    dates.append(row['date_time'])
-                except: continue
+            csv_coin, price, date = "", None, ""
+            for k, v in row.items():
+                if not k or v is None: continue
+                k_clean = str(k).strip().lower()
+                if k_clean in ['crypto_name', 'name', 'coin', 'id']: csv_coin = str(v).strip().lower()
+                elif k_clean in ['close_price', 'price', 'latest_price', 'close']: 
+                    try: price = float(v)
+                    except: pass
+                elif k_clean in ['date_time', 'date', 'time', 'timestamp']: date = str(v).strip()
+            
+            if csv_coin == target_coin and price is not None:
+                prices.append(price)
+                if date: dates.append(date)
                 
-    if not prices or len(prices) < 2: return None
+    if len(prices) < 2: return None
 
     daily_returns = [((prices[i] - prices[i-1]) / prices[i-1]) for i in range(1, len(prices))]
     mean_return = sum(daily_returns) / len(daily_returns)
@@ -338,7 +406,7 @@ def calculate_risk_metrics(coin_name):
     drawdowns = [0.0] 
     for i in range(1, len(prices)):
         if prices[i] > running_max: running_max = prices[i]
-        drawdowns.append(((prices[i] - running_max) / running_max) * 100)
+        drawdowns.append(((prices[i] - running_max) / running_max) * 100 if running_max > 0 else 0)
         
     max_drawdown = min(drawdowns) 
     grade = "Low Risk (Grade A)" if annual_volatility < 40 else "Moderate Risk (Grade B)" if annual_volatility < 65 else "High Risk (Grade C)" if annual_volatility < 90 else "Extreme Risk (Grade D)"
@@ -351,39 +419,14 @@ def risk_analysis():
     analysis = None
     if request.method == 'POST':
         selected_coin = request.form.get('coin')
-        if selected_coin: analysis = calculate_risk_metrics(selected_coin)
+        if selected_coin: 
+            analysis = calculate_risk_metrics(selected_coin)
+            if not analysis: flash(f'Risk Error: Requires a history of price drops for {selected_coin} to calculate Drawdown.', 'error')
     return render_template('risk_analysis.html', username=session['username'], analysis=analysis)
 
-# --- LIVE MARKET & DATA SYNC ---
-
-@app.route('/fetch-data', methods=['POST'])
-def fetch_data():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    dataset = data_manager.gather_all_data_in_parallel()
-    if dataset:
-        data_manager.save_to_csv(dataset)
-        flash('Market data successfully updated!', 'success')
-    else: flash('Error fetching data. Check your connection.', 'error')
-    return redirect(url_for('dashboard'))
-
-@app.route('/live-market')
-def live_market():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    return render_template('live_market.html', username=session['username'])
-
-@app.route('/api/live-prices')
-def api_live_prices():
-    symbols = '["BTCUSDT","ETHUSDT","SOLUSDT","XRPUSDT"]'
-    url = f"https://api.binance.com/api/v3/ticker/24hr?symbols={symbols}"
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response: raw_data = json.loads(response.read().decode())
-        name_map = {"BTCUSDT": "Bitcoin", "ETHUSDT": "Ethereum", "SOLUSDT": "Solana", "XRPUSDT": "Ripple"}
-        live_data = [{"name": name_map[item['symbol']], "symbol": item['symbol'].replace('USDT', ''), "price": float(item['lastPrice']), "change_pct": float(item['priceChangePercent']), "high": float(item['highPrice']), "low": float(item['lowPrice']), "volume": float(item['volume'])} for item in raw_data]
-        return {"status": "success", "data": live_data}
-    except Exception as e: return {"status": "error", "message": str(e)}
-
-# --- REPORTS ---
+# ==========================================
+# 7. REPORTS EXPORT
+# ==========================================
 
 @app.route('/reports')
 def reports():
@@ -409,18 +452,26 @@ def download_forecast_summary():
     if not os.path.exists(filepath): return redirect(url_for('reports'))
 
     coin_data = {}
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            coin = row.get('crypto_name', '').strip()
-            if coin not in coin_data: coin_data[coin] = []
-            try: coin_data[coin].append(float(row['close_price']))
-            except: continue
+            csv_coin, price = "", None
+            for k, v in row.items():
+                if not k or v is None: continue
+                k_clean = str(k).strip().lower()
+                if k_clean in ['crypto_name', 'name', 'coin', 'id']: csv_coin = str(v).strip().capitalize()
+                elif k_clean in ['close_price', 'price', 'latest_price', 'close']: 
+                    try: price = float(v)
+                    except: pass
+            
+            if csv_coin and price is not None:
+                if csv_coin not in coin_data: coin_data[csv_coin] = []
+                coin_data[csv_coin].append(price)
 
     report_data = []
     for coin, prices in coin_data.items():
         if len(prices) < 2: continue
-        daily_change_pct = ((prices[-1] - prices[-2]) / prices[-2]) * 100
+        daily_change_pct = ((prices[-1] - prices[-2]) / prices[-2]) * 100 if prices[-2] > 0 else 0
         prediction = predict_future_price(coin, 1)
         pred_decimal = (prediction['expected_change'] / 100.0) if prediction else 0.0
         report_data.append({'crypto_name': coin.lower(), 'latest_price': round(prices[-1], 2), 'predicted': round(pred_decimal, 5), 'latest_daily_change_%': round(daily_change_pct, 6)})
@@ -439,7 +490,9 @@ def download_strategy_pdf():
     if not plan: return redirect(url_for('reports'))
     return render_template('strategy_pdf.html', username=session['username'], plan=plan, date=time.strftime('%B %d, %Y'))
 
-# --- SETTINGS & EMAIL ---
+# ==========================================
+# 8. SETTINGS & EMAIL ALERTS
+# ==========================================
 
 def send_risk_alert_email(sender_email, sender_password, recipient_email, coin, drop_pct, grade):
     if not sender_email or not sender_password: return False 
