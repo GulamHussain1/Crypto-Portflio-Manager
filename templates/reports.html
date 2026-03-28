@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Crypto Manager{% endblock %}
+
+{% block content %}
+    <div class="top-bar">
+        <h2>Data Exports & Reports</h2>
+        <div><span style="margin-right: 1rem;">User: {{ username }}</span></div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <ul class="flash-messages">
+        {% for category, message in messages %}
+            <li class="flash-message {{ category }}">{{ message }}</li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+    {% endwith %}
+
+    <p style="color: #a0aec0; margin-bottom: 2rem;">Download your raw historical data and generated system reports for external analysis.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1.5rem;">
+        
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 2rem;">📊</span>
+                        <h3 style="color: #ffffff; margin: 0;">Master Market Data</h3>
+                    </div>
+                    <span style="background-color: #2d3748; color: #a0aec0; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">.CSV</span>
+                </div>
+                
+                <p style="color: #a0aec0; font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                    The complete 365-day historical dataset (Open, High, Low, Close, Volume, Market Cap) for all tracked assets. Formatted for machine learning or spreadsheet analysis.
+                </p>
+                
+                <div style="background-color: #0b1120; border: 1px solid #2d3748; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: #a0aec0; font-size: 0.875rem;">Status:</span>
+                        {% if file_exists %}
+                            <span style="color: #22c55e; font-size: 0.875rem; font-weight: bold;">Available</span>
+                        {% else %}
+                            <span style="color: #ef4444; font-size: 0.875rem; font-weight: bold;">Missing (Sync Required)</span>
+                        {% endif %}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: #a0aec0; font-size: 0.875rem;">Last Updated:</span>
+                        <span style="color: #ffffff; font-size: 0.875rem;">{{ last_updated }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #a0aec0; font-size: 0.875rem;">File Size:</span>
+                        <span style="color: #ffffff; font-size: 0.875rem;">{{ file_size }} KB</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if file_exists %}
+                <a href="{{ url_for('download_market_data') }}" style="display: block; text-align: center; background-color: #3b82f6; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 4px; padding: 0.8rem; transition: background-color 0.2s;">
+                    ⬇️ Download CSV File
+                </a>
+            {% else %}
+                <button disabled style="width: 100%; background-color: #2d3748; color: #718096; font-weight: bold; border: none; border-radius: 4px; padding: 0.8rem; cursor: not-allowed;">
+                    Data Unavailable
+                </button>
+            {% endif %}
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 2rem;">📄</span>
+                        <h3 style="color: #ffffff; margin: 0;">Portfolio Strategy</h3>
+                    </div>
+                    <span style="background-color: #2d3748; color: #a0aec0; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">.PDF</span>
+                </div>
+                
+                <p style="color: #a0aec0; font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                    A generated official summary of your simulated investment mix, expected yields, and risk tolerances. Perfect for record-keeping.
+                </p>
+                
+                <div style="background-color: #0b1120; border: 1px solid #2d3748; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: #a0aec0; font-size: 0.875rem;">Status:</span>
+                        {% if session.get('last_plan') %}
+                            <span style="color: #22c55e; font-size: 0.875rem; font-weight: bold;">Ready to Generate</span>
+                        {% else %}
+                            <span style="color: #facc15; font-size: 0.875rem; font-weight: bold;">Awaiting Calculation</span>
+                        {% endif %}
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #a0aec0; font-size: 0.875rem;">Target Profile:</span>
+                        <span style="color: #ffffff; font-size: 0.875rem;">
+                            {{ session.get('last_plan').profile if session.get('last_plan') else 'N/A' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            
+
+            {% if session.get('last_plan') %}
+                <a href="{{ url_for('download_strategy_pdf') }}" target="_blank" style="display: block; text-align: center; background-color: #8b5cf6; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 4px; padding: 0.8rem; transition: background-color 0.2s;">
+                    🖨️ Generate PDF Report
+                </a>
+            {% else %}
+                <a href="{{ url_for('investment_mix') }}" style="display: block; text-align: center; background-color: #2d3748; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 4px; padding: 0.8rem;">
+                    Go to Investment Mix
+                </a>
+            {% endif %}
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 2rem;">🤖</span>
+                        <h3 style="color: #ffffff; margin: 0;">AI Forecast Summary</h3>
+                    </div>
+                    <span style="background-color: #2d3748; color: #a0aec0; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">.CSV</span>
+                </div>
+                
+                <p style="color: #a0aec0; font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                    A dynamically generated spreadsheet combining latest prices, 24-hour historical changes, and our Machine Learning model's near-term predictions.
+                </p>
+                
+                <div style="background-color: #0b1120; border: 1px solid #2d3748; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: #a0aec0; font-size: 0.875rem;">Status:</span>
+                        {% if file_exists %}
+                            <span style="color: #22c55e; font-size: 0.875rem; font-weight: bold;">Ready to Compute</span>
+                        {% else %}
+                            <span style="color: #ef4444; font-size: 0.875rem; font-weight: bold;">Missing DB</span>
+                        {% endif %}
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #a0aec0; font-size: 0.875rem;">Data Columns:</span>
+                        <span style="color: #ffffff; font-size: 0.875rem;">4</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if file_exists %}
+                <a href="{{ url_for('download_forecast_summary') }}" style="display: block; text-align: center; background-color: #10b981; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 4px; padding: 0.8rem; transition: background-color 0.2s;">
+                    ⬇️ Download ML Forecast
+                </a>
+            {% else %}
+                <button disabled style="width: 100%; background-color: #2d3748; color: #718096; font-weight: bold; border: none; border-radius: 4px; padding: 0.8rem; cursor: not-allowed;">
+                    Data Unavailable
+                </button>
+            {% endif %}
+        </div>
+
+    </div>
+{% endblock %}

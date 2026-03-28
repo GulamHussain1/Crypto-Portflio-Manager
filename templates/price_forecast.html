@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Price Forecast - Crypto Manager{% endblock %}
+
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: start; margin-top: 1rem;">
+        
+        <div class="card" style="padding: 0;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #2d3748; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="color: #a0aec0;">🔮</span>
+                <h3 style="color: #ffffff; font-size: 1rem; margin: 0;">AI Price Forecast</h3>
+            </div>
+            
+            <div style="padding: 1.5rem;">
+                <p style="color: #a0aec0; font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                    Select an asset and timeframe. Our proprietary Linear Regression model will analyze 365 days of trend data to predict future price action.
+                </p>
+
+                <form method="POST">
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="color: #ffffff; font-weight: 600; font-size: 0.9rem;">Target Asset</label>
+                        <select name="coin" required style="width: 100%; padding: 0.75rem; background-color: #1a2235; border: 1px solid #2d3748; border-radius: 6px; color: #ffffff; margin-top: 0.5rem; outline: none;">
+                            <option value="Bitcoin" {% if prediction and prediction.coin == 'Bitcoin' %}selected{% endif %}>Bitcoin (BTC)</option>
+                            <option value="Ethereum" {% if prediction and prediction.coin == 'Ethereum' %}selected{% endif %}>Ethereum (ETH)</option>
+                            <option value="Solana" {% if prediction and prediction.coin == 'Solana' %}selected{% endif %}>Solana (SOL)</option>
+                            <option value="Ripple" {% if prediction and prediction.coin == 'Ripple' %}selected{% endif %}>Ripple (XRP)</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="color: #ffffff; font-weight: 600; font-size: 0.9rem;">Prediction Timeframe (Days)</label>
+                        <div class="input-group">
+                            <span class="input-addon">📅</span>
+                            <input type="number" name="days" min="1" max="365" required value="{{ prediction.days_ahead if prediction else 30 }}">
+                        </div>
+                    </div>
+
+                    <button type="submit" style="width: 100%; background-color: #8b5cf6; color: #ffffff; font-weight: bold; border: none; border-radius: 4px; padding: 0.8rem; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.5rem; transition: background-color 0.2s;">
+                        <span>⚡</span> Run Machine Learning Model
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 0;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #2d3748; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="color: #a0aec0;">📈</span>
+                <h3 style="color: #ffffff; font-size: 1rem; margin: 0;">Model Output</h3>
+            </div>
+            
+            <div style="padding: 1.5rem;">
+                {% if prediction %}
+                    <h3 style="margin-bottom: 1.5rem; color: #ffffff;">{{ prediction.coin }} Forecast ({{ prediction.days_ahead }} Days)</h3>
+                    
+                    <div class="kpi-grid" style="margin-bottom: 2rem;">
+                        <div style="background-color: #1a2235; padding: 1.25rem; border-radius: 6px; border: 1px solid #2d3748;">
+                            <div style="color: #a0aec0; font-size: 0.875rem;">Current Price</div>
+                            <div style="font-size: 1.5rem; color: #ffffff; font-weight: bold; margin-top: 0.5rem;">${{ "{:,.2f}".format(prediction.current_price) }}</div>
+                        </div>
+                        <div style="background-color: #1a2235; padding: 1.25rem; border-radius: 6px; border: 1px solid #2d3748;">
+                            <div style="color: #a0aec0; font-size: 0.875rem;">Predicted Target</div>
+                            <div style="font-size: 1.5rem; color: #ffffff; font-weight: bold; margin-top: 0.5rem;">${{ "{:,.2f}".format(prediction.predicted_price) }}</div>
+                        </div>
+                        <div style="background-color: #1a2235; padding: 1.25rem; border-radius: 6px;" 
+     class="{% if prediction.expected_change >= 0 %}border-green{% else %}border-red{% endif %}">
+    
+    <div style="color: #a0aec0; font-size: 0.875rem;">Expected Shift</div>
+    
+    <div style="font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem;" 
+         class="{% if prediction.expected_change >= 0 %}text-green{% else %}text-red{% endif %}">
+        {% if prediction.expected_change >= 0 %}+{% endif %}{{ "{:,.2f}".format(prediction.expected_change) }}%
+    </div>
+    
+</div>
+                    </div>
+
+                    <div style="height: 400px; position: relative; background-color: #1a2235; padding: 1rem; border-radius: 8px; border: 1px solid #2d3748;">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                    
+                    <script id="ml-data" type="application/json">
+                        {
+                            "dates": {{ prediction.dates | tojson | safe }},
+                            "history": {{ prediction.historical_prices | tojson | safe }},
+                            "trendline": {{ prediction.trendline | tojson | safe }},
+                            "days_ahead": {{ prediction.days_ahead }}
+                        }
+                    </script>
+
+                {% else %}
+                    <div style="height: 100%; min-height: 400px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #a0aec0; text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🤖</div>
+                        <h3>Awaiting Target Data</h3>
+                        <p style="max-width: 300px; margin-top: 0.5rem;">Configure your parameters on the left to generate a mathematical price prediction.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const dataElement = document.getElementById('ml-data');
+            if (dataElement) {
+                const mlData = JSON.parse(dataElement.textContent);
+                
+                // 1. We need to generate labels for the future dates
+                // Grab the last date in our historical array
+                let lastDateStr = mlData.dates[mlData.dates.length - 1];
+                let lastDate = new Date(lastDateStr);
+                
+                let allDates = [...mlData.dates]; // Copy existing dates
+                
+                // Loop to create future date labels
+                for (let i = 1; i <= parseInt(mlData.days_ahead); i++) {
+                    let nextDate = new Date(lastDate);
+                    nextDate.setDate(lastDate.getDate() + i);
+                    allDates.push(nextDate.toISOString().split('T')[0]);
+                }
+
+                // 2. Pad the historical data with 'null' so it stops drawing exactly at today
+                let paddedHistory = [...mlData.history];
+                for (let i = 0; i < parseInt(mlData.days_ahead); i++) {
+                    paddedHistory.push(null);
+                }
+
+                // 3. Render the Chart
+                const ctx = document.getElementById('forecastChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: allDates,
+                        datasets: [
+                            {
+                                label: 'Historical Price',
+                                data: paddedHistory,
+                                borderColor: '#3b82f6', // Blue for real data
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'ML Trend Forecast',
+                                data: mlData.trendline,
+                                borderColor: '#facc15', // Yellow for the AI prediction
+                                borderWidth: 2,
+                                borderDash: [5, 5], // Make the prediction line dashed!
+                                pointRadius: 0,
+                                tension: 0
+                            }
+                        ]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            y: { grid: { color: '#2d3748' }, ticks: { color: '#a0aec0' } },
+                            x: { grid: { display: false }, ticks: { color: '#a0aec0', maxTicksLimit: 12 } }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#ffffff' } },
+                            tooltip: { mode: 'index', intersect: false }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}

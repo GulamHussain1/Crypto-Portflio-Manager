@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Crypto Manager{% endblock %}
+
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div class="top-bar">
+        <h2>Overview</h2>
+        <div>
+            <span style="margin-right: 1rem;">User: {{ username }}</span>
+            <form action="{{ url_for('fetch_data') }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn-fetch">⟳ Sync Data</button>
+            </form>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <ul class="flash-messages">
+        {% for category, message in messages %}
+            <li class="flash-message {{ category }}">{{ message }}</li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+    {% endwith %}
+
+    {% if raw_data %}
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Total Cryptos Tracked</div>
+                <div class="kpi-value">{{ raw_data.kpi_total_cryptos }} <span style="font-size: 1rem; color: #a0aec0;">Assets</span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Highest 1Y Return</div>
+                <div class="kpi-value">{{ raw_data.kpi_highest_return_coin }} <span class="kpi-highlight" style="color: #22c55e;">+{{ raw_data.kpi_highest_return_pct }}%</span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Overall Portfolio Risk</div>
+                <div class="kpi-value" style="color: #facc15;">Moderate</div>
+            </div>
+        </div>
+
+        <div class="bento-grid">
+            <div class="chart-card chart-card-large">
+                <h3>1-Year Price History</h3>
+                <div class="chart-wrapper"><canvas id="priceChart"></canvas></div>
+            </div>
+            <div class="chart-card chart-card-small">
+                <h3>Risk Distribution</h3>
+                <div class="chart-wrapper"><canvas id="riskDoughnut"></canvas></div>
+            </div>
+            <div class="chart-card chart-card-large">
+                <h3>Mix Returns vs. Risk</h3>
+                <div class="chart-wrapper"><canvas id="scatterChart"></canvas></div>
+            </div>
+            <div class="chart-card chart-card-small">
+                <h3>Crypto Risk Levels</h3>
+                <div style="color: #a0aec0; font-size: 0.9rem;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #2d3748; padding: 8px 0;"><span>Bitcoin</span> <span style="color: #22c55e;">Low (0.8 ETA)</span></div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #2d3748; padding: 8px 0;"><span>Ethereum</span> <span style="color: #facc15;">Med (1.2 ETA)</span></div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #2d3748; padding: 8px 0;"><span>Solana</span> <span style="color: #ef4444;">High (2.5 ETA)</span></div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #2d3748; padding: 8px 0;"><span>Ripple</span> <span style="color: #facc15;">Med (1.5 ETA)</span></div>
+                </div>
+            </div>
+        </div>
+
+        <script id="dash-data" type="application/json">{{ dashboard_data | safe }}</script>
+        <script id="risk-data" type="application/json">{{ risk_data | safe }}</script>
+        
+    {% else %}
+        <div class="kpi-card" style="text-align: center; color: #a0aec0;">
+            <p>No data found. Please click 'Sync Data' in the top right.</p>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            if(!document.getElementById('dash-data')) return;
+
+            const dashData = JSON.parse(document.getElementById('dash-data').textContent);
+            const riskData = JSON.parse(document.getElementById('risk-data').textContent);
+            
+            Chart.defaults.color = '#a0aec0';
+            Chart.defaults.borderColor = '#2d3748';
+
+            const ctxLine = document.getElementById('priceChart').getContext('2d');
+            const datasets = [];
+            const colors = ['#facc15', '#3b82f6', '#10b981', '#ef4444'];
+            let colorIdx = 0;
+            
+            for (const [coinName, prices] of Object.entries(dashData.prices)) {
+                datasets.push({
+                    label: coinName, data: prices,
+                    borderColor: colors[colorIdx % colors.length],
+                    borderWidth: 2, pointRadius: 0, tension: 0.1
+                });
+                colorIdx++;
+            }
+
+            new Chart(ctxLine, {
+                type: 'line',
+                data: { labels: dashData.dates, datasets: datasets },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
+            });
+
+            const ctxDoughnut = document.getElementById('riskDoughnut').getContext('2d');
+            new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+                    datasets: [{ data: riskData.distribution, backgroundColor: ['#22c55e', '#facc15', '#ef4444'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+            });
+
+            const ctxScatter = document.getElementById('scatterChart').getContext('2d');
+            new Chart(ctxScatter, {
+                type: 'scatter',
+                data: {
+                    datasets: [{ label: 'Portfolio Configurations', data: riskData.mix_scatter, backgroundColor: '#3b82f6' }]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { title: { display: true, text: 'Risk Score' } }, y: { title: { display: true, text: 'Expected Return (%)' } } }
+                }
+            });
+        });
+    </script>
+{% endblock %}

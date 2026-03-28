@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Live Market - Crypto Manager{% endblock %}
+
+{% block content %}
+    <div class="top-bar">
+        <h2>Live Market Data</h2>
+        <div>
+            <span style="margin-right: 1rem;">User: {{ username }}</span>
+            <span id="connection-status" style="color: #22c55e; font-size: 0.875rem;">● Live</span>
+        </div>
+    </div>
+
+    <div class="market-grid" id="market-container">
+        <p style="color: #a0aec0;">Connecting to market stream...</p>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        let previousPrices = {};
+
+        async function fetchLivePrices() {
+            try {
+                const response = await fetch('/api/live-prices');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    document.getElementById('connection-status').style.color = '#22c55e';
+                    document.getElementById('connection-status').innerText = '● Live';
+                    renderMarketCards(result.data);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error("Error fetching live data:", error);
+                document.getElementById('connection-status').style.color = '#ef4444';
+                document.getElementById('connection-status').innerText = '● Reconnecting...';
+            }
+        }
+
+        function renderMarketCards(coins) {
+            const container = document.getElementById('market-container');
+            container.innerHTML = ''; 
+            
+            coins.forEach(coin => {
+                let flashClass = '';
+                if (previousPrices[coin.symbol]) {
+                    if (coin.price > previousPrices[coin.symbol]) flashClass = 'flash-up';
+                    else if (coin.price < previousPrices[coin.symbol]) flashClass = 'flash-down';
+                }
+                previousPrices[coin.symbol] = coin.price; 
+                
+                const changeColor = coin.change_pct >= 0 ? 'text-green' : 'text-red';
+                const changeSign = coin.change_pct >= 0 ? '+' : '';
+
+                const cardHTML = `
+                    <div class="market-card">
+                        <div class="market-header">
+                            <span class="coin-name">${coin.name}</span>
+                            <span class="coin-symbol">${coin.symbol}</span>
+                        </div>
+                        <div class="live-price ${flashClass}">
+                            $${coin.price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}
+                        </div>
+                        <div style="font-size: 1rem; margin-bottom: 1rem;" class="${changeColor}">
+                            ${changeSign}${coin.change_pct.toFixed(2)}% (24h)
+                        </div>
+                        <div class="market-stats">
+                            <div class="stat-group">
+                                <span>24h High</span>
+                                <span style="color: #ffffff;">$${coin.high.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-group">
+                                <span>24h Low</span>
+                                <span style="color: #ffffff;">$${coin.low.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-group">
+                                <span>Volume</span>
+                                <span style="color: #ffffff;">${Math.round(coin.volume).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        fetchLivePrices();
+        setInterval(fetchLivePrices, 3000);
+    </script>
+{% endblock %}

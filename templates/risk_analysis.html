@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Risk Analysis - Crypto Manager{% endblock %}
+
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: start; margin-top: 1rem;">
+        
+        <div class="card" style="padding: 0;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #2d3748; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="color: #a0aec0;">⚠️</span>
+                <h3 style="color: #ffffff; font-size: 1rem; margin: 0;">Risk Scanner</h3>
+            </div>
+            
+            <div style="padding: 1.5rem;">
+                <p style="color: #a0aec0; font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                    Select an asset to calculate its annualized historical volatility and scan for maximum drawdown (the deepest drop from a peak).
+                </p>
+
+                <form method="POST">
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="color: #ffffff; font-weight: 600; font-size: 0.9rem;">Target Asset</label>
+                        <select name="coin" required style="width: 100%; padding: 0.75rem; background-color: #1a2235; border: 1px solid #2d3748; border-radius: 6px; color: #ffffff; margin-top: 0.5rem; outline: none;">
+                            <option value="Bitcoin" {% if analysis and analysis.coin == 'Bitcoin' %}selected{% endif %}>Bitcoin (BTC)</option>
+                            <option value="Ethereum" {% if analysis and analysis.coin == 'Ethereum' %}selected{% endif %}>Ethereum (ETH)</option>
+                            <option value="Solana" {% if analysis and analysis.coin == 'Solana' %}selected{% endif %}>Solana (SOL)</option>
+                            <option value="Ripple" {% if analysis and analysis.coin == 'Ripple' %}selected{% endif %}>Ripple (XRP)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" style="width: 100%; background-color: #ef4444; color: #ffffff; font-weight: bold; border: none; border-radius: 4px; padding: 0.8rem; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.5rem; transition: opacity 0.2s;">
+                        <span>🛡️</span> Run Stress Test
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 0;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #2d3748; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="color: #a0aec0;">📊</span>
+                <h3 style="color: #ffffff; font-size: 1rem; margin: 0;">Stress Test Results</h3>
+            </div>
+            
+            <div style="padding: 1.5rem;">
+                {% if analysis %}
+                    <h3 style="margin-bottom: 1.5rem; color: #ffffff;">{{ analysis.coin }} Risk Profile</h3>
+                    
+                    <div class="kpi-grid" style="margin-bottom: 2rem;">
+                        <div style="background-color: #1a2235; padding: 1.25rem; border-radius: 6px; border: 1px solid #2d3748;">
+                            <div style="color: #a0aec0; font-size: 0.875rem;">System Risk Grade</div>
+                            <div style="font-size: 1.2rem; color: #facc15; font-weight: bold; margin-top: 0.5rem;">{{ analysis.grade }}</div>
+                        </div>
+                        <div style="background-color: #1a2235; padding: 1.25rem; border-radius: 6px; border: 1px solid #2d3748;">
+                            <div style="color: #a0aec0; font-size: 0.875rem;">Annualized Volatility</div>
+                            <div style="font-size: 1.5rem; color: #ffffff; font-weight: bold; margin-top: 0.5rem;">{{ "{:,.1f}".format(analysis.annual_volatility) }}%</div>
+                        </div>
+                        <div style="background-color: #1a2235; padding: 1.25rem; border-radius: 6px; border: 1px solid #ef4444;">
+                            <div style="color: #a0aec0; font-size: 0.875rem;">Maximum Drawdown</div>
+                            <div style="font-size: 1.5rem; color: #ef4444; font-weight: bold; margin-top: 0.5rem;">{{ "{:,.2f}".format(analysis.max_drawdown) }}%</div>
+                        </div>
+                    </div>
+
+                    <h4 style="color: #a0aec0; margin-bottom: 1rem;">1-Year Drawdown History (Underwater Chart)</h4>
+                    
+                    <div style="height: 350px; position: relative; background-color: #1a2235; padding: 1rem; border-radius: 8px; border: 1px solid #2d3748;">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                    
+                    <script id="risk-data" type="application/json">
+                        {
+                            "dates": {{ analysis.dates | tojson | safe }},
+                            "drawdowns": {{ analysis.drawdowns | tojson | safe }}
+                        }
+                    </script>
+
+                {% else %}
+                    <div style="height: 100%; min-height: 400px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #a0aec0; text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🌊</div>
+                        <h3>Ready for Stress Test</h3>
+                        <p style="max-width: 300px; margin-top: 0.5rem;">Select an asset to visualize its historical crashes and calculate exact volatility metrics.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const dataElement = document.getElementById('risk-data');
+            if (dataElement) {
+                const riskData = JSON.parse(dataElement.textContent);
+                
+                const ctx = document.getElementById('riskChart').getContext('2d');
+                
+                // Create a red gradient for the "underwater" drawdown area
+                const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+                gradient.addColorStop(0, 'rgba(239, 68, 68, 0)');    // Clear at the 0% top line
+                gradient.addColorStop(1, 'rgba(239, 68, 68, 0.5)');  // Dark red at the bottom crashes
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: riskData.dates,
+                        datasets: [{
+                            label: 'Drawdown %',
+                            data: riskData.drawdowns,
+                            borderColor: '#ef4444', // Red line
+                            backgroundColor: gradient,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            y: { 
+                                grid: { color: '#2d3748' }, 
+                                ticks: { color: '#a0aec0' },
+                                max: 0 // Drawdown is always 0 or negative
+                            },
+                            x: { grid: { display: false }, ticks: { color: '#a0aec0', maxTicksLimit: 12 } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}
